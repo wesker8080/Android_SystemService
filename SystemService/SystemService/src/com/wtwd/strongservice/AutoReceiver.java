@@ -1,0 +1,223 @@
+package com.wtwd.strongservice;
+
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.text.format.Time;
+import android.util.Log;
+
+import com.wtwd.strongservice.service.Service1;
+import com.wtwd.strongservice.service.Service2;
+import com.wtwd.strongservice.utils.DataCache;
+import com.wtwd.strongservice.utils.DeviceInfoManager;
+import com.wtwd.strongservice.utils.SysUtil;
+
+import org.json.JSONObject;
+
+import java.util.HashMap;
+import java.util.Map;
+
+/**
+ * Created by Administrator on 2016/8/26.
+ */
+
+public class AutoReceiver extends BroadcastReceiver {
+
+    //系统启动完成
+    static final String ACTION = "android.intent.action.BOOT_COMPLETED";
+    static final String WESKER = "android.system.customer.do";//接收对方广播
+    static final String START = "android.system.service.do";
+    static final String SEND = "android.WTWD.SEND.SYS_DATA";
+    private static boolean DEBUG = true; 
+    @Override
+    public void onReceive(final Context context, Intent intent) {
+        //当间听到的事件是“BOOT_COMPLETED”时，就创建并启动相应的Service
+        if(intent.getAction().equals(START)){
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    setCurrentBytes(context);
+                }
+            }).start();
+            Intent i = new Intent(context, Service1.class);
+            context.startService(i);
+        }else if (intent.getAction().equals(ACTION)) {
+            //Log.e("wesker","BOOT_COMPLETED");
+            if(DataCache.getInstance(context).isFirstIn()){
+                Time t=new Time(); // or Time t=new Time("GMT+8"); 加上Time Zone资料。
+                t.setToNow(); // 取得系统时间。
+                int month = t.month;
+                int date1 = t.monthDay;
+                DataCache.getInstance(context).setFirstInWeek(SysUtil.getInitWeek());
+                DataCache.getInstance(context).setFirstInMonth(month);
+                DataCache.getInstance(context).setFirstInDay(date1);
+                DataCache.getInstance(context).setFirstInfalse();
+                long mTotalRxBytes = SysUtil.getCurrentTotalRxBytes();//当前总发送流量
+                long mTotalTxBytes = SysUtil.getCurrentTotalTxBytes();//当前总接收流量
+                long mMobileRxBytes = SysUtil.getCurrentMobileRxBytes();//当前数据网络总发送流量
+                long mMobileTxBytes = SysUtil.getCurrentMobileTxBytes();//当前数据网络总接收流量
+                long mWifiRxBytes = mTotalRxBytes - mMobileRxBytes;//当前WIFI总发送流量
+                long mWifiTxBytes = mTotalTxBytes - mMobileTxBytes;//当前WIFI总接收流量
+                DataCache.getInstance(context).setInitDayMobileRxBytes(mMobileRxBytes);
+                DataCache.getInstance(context).setInitDayMobileTxBytes(mMobileTxBytes);
+
+                DataCache.getInstance(context).setInitWeekMobileRxBytes(mMobileRxBytes);
+                DataCache.getInstance(context).setInitWeekMobileTxBytes(mMobileTxBytes);
+
+                DataCache.getInstance(context).setInitMonMobileRxBytes(mMobileRxBytes);
+                DataCache.getInstance(context).setInitMonMobileTxBytes(mMobileTxBytes);
+
+                DataCache.getInstance(context).setInitDayWifiRxBytes(mWifiRxBytes);
+                DataCache.getInstance(context).setInitDayWifiTxBytes(mWifiTxBytes);
+
+                DataCache.getInstance(context).setInitWeekWifiRxBytes(mWifiRxBytes);
+                DataCache.getInstance(context).setInitWeekWifiTxBytes(mWifiTxBytes);
+
+                DataCache.getInstance(context).setInitMonWifiRxBytes(mWifiRxBytes);
+                DataCache.getInstance(context).setInitMonWifiTxBytes(mWifiTxBytes);
+            }
+            //开机启动的Service
+            Intent serviceIntent = new Intent(context, Service1.class);
+            //启动Service
+            context.startService(serviceIntent);
+            Intent serviceIntent2 = new Intent(context, Service2.class);
+            //启动Service
+            context.startService(serviceIntent2);
+        }else if(intent.getAction().equals(WESKER)){
+            //CPU总占用率
+            float mRate = DeviceInfoManager.getTotalCpuRate();
+            //内存占用率
+            String mValue = DeviceInfoManager.getUsedPercentValue(context);
+            //总内存
+            long mMemory = DeviceInfoManager.getTotalMemory();
+            //ICCID
+            String mIccid = SysUtil.getIccid(context);
+            //GPS
+            Map<String, String> gpsInfo = SysUtil.getGpsLocation(context);
+            //流量
+            //日流量
+            String mDayMobileRxBytes = DataCache.getInstance(context).getDayMobileRxBytes();
+            String mDayMobileTxBytes = DataCache.getInstance(context).getDayMobileTxBytes();
+            String mDayWifiRxBytes = DataCache.getInstance(context).getDayWifiRxBytes();
+            String mDayWifiTxBytes = DataCache.getInstance(context).getDayWifiTxBytes();
+            //Log.e("wesker","ReceivemDayWifiRxBytes:"+mDayWifiRxBytes+"---ReceivemDayWifiTxBytes:"+mDayWifiTxBytes);
+            //星期流量
+            String mWeekMobileRxBytes = DataCache.getInstance(context).getWeekMobileRxBytes();
+            String mWeekMobileTxBytes = DataCache.getInstance(context).getWeekMobileTxBytes();
+            String mWeekWifiRxBytes = DataCache.getInstance(context).getWeekWifiRxBytes();
+            String mWeekWifiTxBytes = DataCache.getInstance(context).getWeekWifiTxBytes();
+            //月流量
+            String mMonthMobileRxBytes = DataCache.getInstance(context).getMonthMobileRxBytes();
+            String mMonthMobileTxBytes = DataCache.getInstance(context).getMonthMobileTxBytes();
+            String mMonthWifiRxBytes = DataCache.getInstance(context).getMonthWifiRxBytes();
+            String mMonthWifiTxBytes = DataCache.getInstance(context).getMonthWifiTxBytes();
+            Map<String,String> netInfo = new HashMap<>();
+            netInfo.put("dayMobileRxBytes",mDayMobileRxBytes);
+            netInfo.put("dayMobileTxBytes",mDayMobileTxBytes);
+            netInfo.put("dayWifiRxBytes",mDayWifiRxBytes);
+            netInfo.put("dayWifiTxBytes",mDayWifiTxBytes);
+            netInfo.put("weekMobileRxBytes",mWeekMobileRxBytes);
+            netInfo.put("weekMobileTxBytes",mWeekMobileTxBytes);
+            netInfo.put("weekWifiRxBytes",mWeekWifiRxBytes);
+            netInfo.put("weekWifiTxBytes",mWeekWifiTxBytes);
+            netInfo.put("monthMobileRxBytes",mMonthMobileRxBytes);
+            netInfo.put("monthMobileTxBytes",mMonthMobileTxBytes);
+            netInfo.put("monthWifiRxBytes",mMonthWifiRxBytes);
+            netInfo.put("monthWifiTxBytes",mMonthWifiTxBytes);
+            Map<String, String> dataInfo = new HashMap<>();
+            dataInfo.put("totalCpuRate", String.valueOf(mRate));
+            dataInfo.put("usedPercentValue",mValue);
+            dataInfo.put("totalMemory", String.valueOf(mMemory));
+            dataInfo.put("iccid", mIccid);
+            dataInfo.put("gpsInfo", String.valueOf(gpsInfo));
+            dataInfo.put("netInfo", String.valueOf(netInfo));
+            JSONObject object = new JSONObject(dataInfo);
+            if(DEBUG) {
+                Log.d("jsoninfo", object.toString());
+            }
+            Intent sendIntent = new Intent();
+            sendIntent.putExtra("systemInfo",object.toString());
+            sendIntent.setAction(SEND);
+            //发送无序广播
+            context.sendBroadcast(sendIntent);
+        }
+
+    }
+    public void setCurrentBytes(Context context){
+        int firstDay = DataCache.getInstance(context).getFirstInDay();
+        int firstMon = DataCache.getInstance(context).getFirstInMonth();
+        int firstWeek = DataCache.getInstance(context).getFirstInWeek();
+        Time t=new Time(); // or Time t=new Time("GMT+8"); 加上Time Zone资料。
+        t.setToNow(); // 取得系统时间。
+        int month = t.month;
+        int date1 = t.monthDay;
+        long currentWifiRxBytes = SysUtil.getCurrentTotalRxBytes() - SysUtil.getCurrentMobileRxBytes();
+        long currentWifiTxBytes = SysUtil.getCurrentTotalTxBytes() - SysUtil.getCurrentMobileTxBytes();
+        long currentMobileRxBytes = SysUtil.getCurrentMobileRxBytes();
+        long currentMobileTxBytes = SysUtil.getCurrentMobileTxBytes();
+        if(DEBUG) {
+            Log.e("wesker", "month:" + month + "--firstMon:" + firstMon);
+        }
+        //Log.e("wesker","date1:"+date1+"--firstDay:"+firstDay);
+        //Log.e("wesker","week:"+SysUtil.getInitWeek()+"--firstWeek:"+firstWeek);
+        //月流量
+        if( month == firstMon ){//当月
+            long monMobileRxBytes = currentMobileRxBytes - DataCache.getInstance(context).getInitMonMobileRxBytes();
+            long monMobileTxBytes = currentMobileTxBytes - DataCache.getInstance(context).getInitMonMobileTxBytes();
+            long monWifiRxBytes = currentWifiRxBytes - DataCache.getInstance(context).getInitMonWifiRxBytes();
+            long monWifiTxBytes = currentWifiTxBytes - DataCache.getInstance(context).getInitMonWifiTxBytes();
+
+            //Log.e("wesker","monMobileRxBytes:"+monMobileRxBytes+"--monMobileTxBytes:"+monMobileTxBytes);
+           // Log.e("wesker","monWifiRxBytes:"+monWifiRxBytes+"--monWifiTxBytes:"+monWifiTxBytes);
+            DataCache.getInstance(context).setMonthMobileRxBytes(String.valueOf(monMobileRxBytes));
+            DataCache.getInstance(context).setMonthMobileTxBytes(String.valueOf(monMobileTxBytes));
+            DataCache.getInstance(context).setMonthWifiRxBytes(String.valueOf(monWifiRxBytes));
+            DataCache.getInstance(context).setMonthWifiTxBytes(String.valueOf(monWifiTxBytes));
+        }else{//过月，重置数据
+            DataCache.getInstance(context).setFirstInMonth(month);
+            DataCache.getInstance(context).setInitMonMobileRxBytes(currentMobileRxBytes);
+            DataCache.getInstance(context).setInitMonMobileTxBytes(currentMobileTxBytes);
+            DataCache.getInstance(context).setInitMonWifiRxBytes(currentWifiRxBytes);
+            DataCache.getInstance(context).setInitMonWifiTxBytes(currentWifiTxBytes);
+        }
+
+        //日流量
+        if(date1 == firstDay ){ //当天
+            long mDayMobileRxBytes = currentMobileRxBytes - DataCache.getInstance(context).getInitDayMobileRxBytes();
+            long mDayMobileTxBytes = currentMobileTxBytes - DataCache.getInstance(context).getInitDayMobileTxBytes();
+            long mDayWifiRxBytes =	currentWifiRxBytes - DataCache.getInstance(context).getInitDayWifiRxBytes();
+            long mDayWifiTxBytes =	currentWifiTxBytes - DataCache.getInstance(context).getInitDayWifiTxBytes();
+            DataCache.getInstance(context).setDayMobileRxBytes(String.valueOf(mDayMobileRxBytes));
+            DataCache.getInstance(context).setDayMobileTxBytes(String.valueOf(mDayMobileTxBytes));
+            DataCache.getInstance(context).setDayWifiRxBytes(String.valueOf(mDayWifiRxBytes));
+            DataCache.getInstance(context).setDayWifiTxBytes(String.valueOf(mDayWifiTxBytes));
+        }else{//第二天,重置数据
+            if(DEBUG) {
+                Log.e("wesker", "第二天");
+            }
+            DataCache.getInstance(context).setFirstInDay(date1);
+            DataCache.getInstance(context).setInitDayMobileRxBytes(currentMobileRxBytes);
+            DataCache.getInstance(context).setInitDayMobileTxBytes(currentMobileTxBytes);
+            DataCache.getInstance(context).setInitDayWifiRxBytes(currentWifiRxBytes);
+            DataCache.getInstance(context).setInitDayWifiTxBytes(currentWifiTxBytes);
+        }
+        //周流量
+        if(SysUtil.getInitWeek() >= firstWeek ) {
+            //本周
+            long mWeekMobileRxBytes = currentMobileRxBytes - DataCache.getInstance(context).getInitWeekMobileRxBytes();
+            long mWeekMobileTxBytes = currentMobileTxBytes - DataCache.getInstance(context).getInitWeekMobileTxBytes();
+            long mWeekWifiRxBytes =	currentWifiRxBytes - DataCache.getInstance(context).getInitWeekWifiRxBytes();
+            long mWeekWifiTxBytes =	currentWifiTxBytes - DataCache.getInstance(context).getInitWeekWifiTxBytes();
+            DataCache.getInstance(context).setWeekMobileRxBytes(String.valueOf(mWeekMobileRxBytes));
+            DataCache.getInstance(context).setWeekMobileTxBytes(String.valueOf(mWeekMobileTxBytes));
+            DataCache.getInstance(context).setWeekWifiRxBytes(String.valueOf(mWeekWifiRxBytes));
+            DataCache.getInstance(context).setWeekWifiTxBytes(String.valueOf(mWeekWifiTxBytes));
+        }else{
+            DataCache.getInstance(context).setFirstInWeek(SysUtil.getInitWeek());
+            DataCache.getInstance(context).setInitWeekMobileRxBytes(currentMobileRxBytes);
+            DataCache.getInstance(context).setInitWeekMobileTxBytes(currentMobileTxBytes);
+            DataCache.getInstance(context).setInitWeekWifiRxBytes(currentWifiRxBytes);
+            DataCache.getInstance(context).setInitWeekWifiTxBytes(currentWifiTxBytes);
+        }
+    }
+}
